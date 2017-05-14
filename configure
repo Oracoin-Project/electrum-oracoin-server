@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# check root
+if [ ! "$(id -u)" == "0" ]; then
+    echo "must be root to run install script"
+    exit 1
+fi
+
+
+# source directory
+source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}" )"; pwd)
+
+
+electrum_config="/etc/electrum-oracoin.conf"
+function read_config()
+{
+    text=$1
+    echo `grep -e ^$text $electrum_config |awk -F\= '{print $2}' | tail -n 1| tr -d ' '`
+}
+function write_config()
+{
+    sed -i -s "s#$1 =.*#$1 = $2#" $electrum_config
+}
+
+# create config file
+if [ ! -f $electrum_config ]; then
+    echo "Creating config file"
+    cp $source_dir"/electrum-oracoin.conf.sample" $electrum_config
+fi
+
+
+# read username
+user=$(read_config "username")
+if ! [ "$user" ]; then
+    read -p "username for running daemon (default: oracoin) " -r
+    if [ $REPLY ]; then
+	user=$REPLY
+    else
+	user="oracoin"
+    fi
+    write_config "username" $user
+fi
+
+
+# create user
+if [ ! id -u $user >/dev/null 2>&1 ]; then
+    echo "adding user $user"
+    useradd $user
+    echo "$user hard nofile 65536" >> /etc/security/limits.conf
+    echo "$user soft nofile 65536" >> /etc/security/limits.conf
+fi
+
+
+# read path from config
+default_path="/var/electrum-oracoin-server"
+path=$(read_config "path")
+if ! [ "$path" ]; then
+    read -p "Path for database (default: $default_path), press enter for default: " -r
+    if [ $REPLY ]; then
+	path=$REPLY
+	mkdir -p $path
+	chown -R $user:$user $path
+	echo "Selected $REPLY"
+    else
+	path=$default_path
+	mkdir -p $path
+	chown -R $user:$user $path
+	echo "Selected $default_path"
+    fi
+    write_config "path" $default_path
+fi
+
+# read path from config
+default_logfile="/var/log/electrum-oracoin.log"
+logfile=$(read_config "logfile")
+if ! [ "$logfile" ]; then
+    read -p "Path of logfile (default: $default_logfile) press enter for default: " -r
+    if [ $REPLY ]; then
+	logfile=$REPLY
+	touch $logfile
+	chown $user:$user $logfile
+	echo "Selected $REPLY"
+    else
+	logfile=$default_logfile
+	touch $logfile
+	chown $user:$user $logfile
+	echo "Selected $default_logfile"
+    fi
+    write_config "logfile" $default_logfile
+fi
+
+
+# download database
+if [ ! -d $path ]; then
+    echo "Database not found in $path."
+    read -p "Do you want to download it from the oracoin Electrum foundry to $path ? " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+	mkdir -p $path
+	wget -O - "http://electrum1.oracoin.com/electrum-oracoin-fulltree-latest.tar.gz" | tar --extract --gunzip --strip-components 1 --directory $path --file -
+    fi
+fi
+
+
+
+oracoind_user=$(read_config "oracoind_user")
+if ! [ "$oracoind_user" ]; then
+    read -p "rpcuser (from your oracoin.conf file): " -r
+    write_config "oracoind_user" $REPLY
+fi
+
+oracoind_password=$(read_config "oracoind_password")
+if ! [ "$oracoind_password" ]; then
+    read -p "rpcpassword (from your oracoin.conf file): " -r
+    write_config "oracoind_password" $REPLY
+fi
+
+
+# finish
+echo "Configuration written to $electrum_config."
+echo "Please edit this file to finish the configuration."
+echo "If you have not done so, please run 'python setup.py install'"
+echo "Then, run 'electrum-oracoin-server' to start the daemon"

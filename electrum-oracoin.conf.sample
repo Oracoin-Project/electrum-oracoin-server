@@ -1,0 +1,37 @@
+[server]
+# username for running the daemon
+username =
+# hostname. set it to a FQDN in order to be reached from outside
+host = 0.0.0.0
+# ports
+electrum_rpc_port = 8012
+stratum_tcp_port = 50011
+#stratum_tcp_ssl_port = 50012
+#report_host =
+#report_stratum_tcp_port = 50011
+#report_stratum_tcp_ssl_port = 50012
+password = secret
+banner = Welcome to Electrum!
+banner_file = /etc/electrum-oracoin.banner
+irc = yes
+irc_nick = oracoin
+#ssl_certfile = /path/to/electrum-oracoin-server.crt
+#ssl_keyfile = /path/to/electrum-oracoin-server.key
+logfile = /var/log/electrum-oracoin.log
+donation_address =
+
+# default backend is leveldb (pruning server)
+backend = leveldb
+
+[leveldb]
+# path to your database
+path =
+# for each address, history will be pruned if it is longer than this limit
+pruning_limit = 1000
+
+[oracoind]
+oracoind_host = localhost
+oracoind_port = 15555
+# user and password from oracoin.conf
+oracoind_user =
+oracoind_password =
